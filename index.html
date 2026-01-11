@@ -8,11 +8,11 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css" />
     <script src="https://js.arcgis.com/4.34/"></script>
     
-    <!-- Add PMTiles library -->
-    <script src="https://unpkg.com/pmtiles@3.0.7/dist/pmtiles.js"></script>
-    <!-- Add Maplibre for rendering -->
+    <!-- Add MapLibre FIRST (before PMTiles) -->
     <script src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'></script>
     <link href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css' rel='stylesheet' />
+    <!-- Add PMTiles library -->
+    <script src="https://unpkg.com/pmtiles@3.0.7/dist/pmtiles.js"></script>
 
     <style>
       html,
@@ -42,8 +42,11 @@
       }
     </style>
     <script type="module">
+      // Store MapLibre reference BEFORE importing ArcGIS modules
+      const MapLibreMap = maplibregl.Map;
+      
       const [
-        Map,
+        EsriMap,
         Basemap,
         MapView,
         FeatureLayer,
@@ -87,7 +90,7 @@
         ],
       });
 
-      const map = new Map({
+      const map = new EsriMap({
         basemap,
       });
 
@@ -124,7 +127,7 @@
       maplibregl.addProtocol("pmtiles", protocol.tile);
 
       // Create MapLibre map synced with ArcGIS view
-      const mlMap = new maplibregl.Map({
+      const mlMap = new MapLibreMap({
         container: pmtilesContainer,
         style: {
           version: 8,
@@ -162,6 +165,17 @@
         zoom: 11,
         interactive: false,
         attributionControl: false
+      });
+
+      // Debug: Check what's in the PMTiles file
+      mlMap.on('load', () => {
+        console.log('MapLibre loaded');
+        const style = mlMap.getStyle();
+        console.log('Style:', style);
+      });
+
+      mlMap.on('error', (e) => {
+        console.error('MapLibre error:', e);
       });
 
       // Sync MapLibre with ArcGIS MapView
