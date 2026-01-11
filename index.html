@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css" />
     <script src="https://js.arcgis.com/4.34/"></script>
     
-    <!-- Add MapLibre FIRST (before PMTiles) -->
+    <!-- Add MapLibre -->
     <script src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'></script>
     <link href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css' rel='stylesheet' />
     <!-- Add PMTiles library -->
@@ -41,279 +41,288 @@
         z-index: 1;
       }
     </style>
-    <script type="module">
-      // Store MapLibre reference BEFORE importing ArcGIS modules
-      const MapLibreMap = maplibregl.Map;
-      
-      const [
-        EsriMap,
-        Basemap,
-        MapView,
-        FeatureLayer,
-        TileLayer,
-        GraphicsLayer,
-        SimpleRenderer,
-        SimpleFillSymbol,
-        FeatureFilter,
-        TimeSlider,
-        TimeExtent,
-        reactiveUtils,
-        Graphic,
-        TextSymbol,
-        centroidOperator,
-        webMercatorUtils,
-      ] = await $arcgis.import([
-        "@arcgis/core/Map.js",
-        "@arcgis/core/Basemap.js",
-        "@arcgis/core/views/MapView.js",
-        "@arcgis/core/layers/FeatureLayer.js",
-        "@arcgis/core/layers/TileLayer.js",
-        "@arcgis/core/layers/GraphicsLayer.js",
-        "@arcgis/core/renderers/SimpleRenderer.js",
-        "@arcgis/core/symbols/SimpleFillSymbol.js",
-        "@arcgis/core/layers/support/FeatureFilter.js",
-        "@arcgis/core/widgets/TimeSlider.js",
-        "@arcgis/core/time/TimeExtent.js",
-        "@arcgis/core/core/reactiveUtils.js",
-        "@arcgis/core/Graphic.js",
-        "@arcgis/core/symbols/TextSymbol.js",
-        "@arcgis/core/geometry/operators/centroidOperator.js",
-        "@arcgis/core/geometry/support/webMercatorUtils.js",
-      ]);
+    <script>
+      // Wait for libraries to load, then start the app
+      window.addEventListener('load', async () => {
+        const [
+          EsriMap,
+          Basemap,
+          MapView,
+          FeatureLayer,
+          TileLayer,
+          GraphicsLayer,
+          SimpleRenderer,
+          SimpleFillSymbol,
+          FeatureFilter,
+          TimeSlider,
+          TimeExtent,
+          reactiveUtils,
+          Graphic,
+          TextSymbol,
+          centroidOperator,
+          webMercatorUtils,
+        ] = await $arcgis.import([
+          "@arcgis/core/Map.js",
+          "@arcgis/core/Basemap.js",
+          "@arcgis/core/views/MapView.js",
+          "@arcgis/core/layers/FeatureLayer.js",
+          "@arcgis/core/layers/TileLayer.js",
+          "@arcgis/core/layers/GraphicsLayer.js",
+          "@arcgis/core/renderers/SimpleRenderer.js",
+          "@arcgis/core/symbols/SimpleFillSymbol.js",
+          "@arcgis/core/layers/support/FeatureFilter.js",
+          "@arcgis/core/widgets/TimeSlider.js",
+          "@arcgis/core/time/TimeExtent.js",
+          "@arcgis/core/core/reactiveUtils.js",
+          "@arcgis/core/Graphic.js",
+          "@arcgis/core/symbols/TextSymbol.js",
+          "@arcgis/core/geometry/operators/centroidOperator.js",
+          "@arcgis/core/geometry/support/webMercatorUtils.js",
+        ]);
 
-      // Firefly Imagery Hybrid
-      const basemap = new Basemap({
-        baseLayers: [
-          new TileLayer({
-            url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer",
-          }),
-        ],
-      });
-
-      const map = new EsriMap({
-        basemap,
-      });
-
-      // center around Sonoma county and lock the map extent and scale
-      const view = new MapView({
-        container: "viewDiv",
-        map,
-        center: [-122.7798, 38.6837],
-        zoom: 11,
-        constraints: {
-          minZoom: 11,
-          maxZoom: 11,
-          geometry: {
-            type: "extent",
-            xmax: -13633120.623372689,
-            xmin: -13702449.008027252,
-            ymax: 4708568.6044162195,
-            ymin: 4644361.5006567575,
-            spatialReference: {
-              wkid: 102100,
-            },
-          },
-        },
-      });
-      view.ui.remove("zoom");
-
-      // ===== ADD PMTILES LAYER =====
-      const pmtilesContainer = document.createElement('div');
-      pmtilesContainer.id = 'pmtiles-container';
-      view.container.appendChild(pmtilesContainer);
-
-      // Initialize PMTiles protocol
-      let protocol = new pmtiles.Protocol();
-      maplibregl.addProtocol("pmtiles", protocol.tile);
-
-      // Create MapLibre map synced with ArcGIS view
-      const mlMap = new MapLibreMap({
-        container: pmtilesContainer,
-        style: {
-          version: 8,
-          sources: {
-            pmtiles: {
-              type: 'vector',
-              url: 'pmtiles://https://github.com/AlessandraSozzi/test-esri-app/releases/download/asset/cropland.pmtiles',
-              attribution: 'PMTiles'
-            }
-          },
-          layers: [
-            {
-              id: 'cropland',
-              type: 'fill',
-              source: 'pmtiles',
-              'source-layer': 'cropland', // Change this to match your PMTiles layer name
-              paint: {
-                'fill-color': '#00ff00',
-                'fill-opacity': 0.6
-              }
-            },
-            {
-              id: 'cropland-outline',
-              type: 'line',
-              source: 'pmtiles',
-              'source-layer': 'cropland', // Change this to match your PMTiles layer name
-              paint: {
-                'line-color': '#00aa00',
-                'line-width': 1
-              }
-            }
-          ]
-        },
-        center: [-122.7798, 38.6837],
-        zoom: 11,
-        interactive: false,
-        attributionControl: false
-      });
-
-      // Debug: Check what's in the PMTiles file
-      mlMap.on('load', () => {
-        console.log('MapLibre loaded');
-        const style = mlMap.getStyle();
-        console.log('Style:', style);
-      });
-
-      mlMap.on('error', (e) => {
-        console.error('MapLibre error:', e);
-      });
-
-      // Sync MapLibre with ArcGIS MapView
-      function syncMaps() {
-        const center = webMercatorUtils.webMercatorToGeographic(view.center);
-        mlMap.setCenter([center.x, center.y]);
-        mlMap.setZoom(view.zoom);
-        mlMap.setBearing(view.rotation);
-      }
-
-      view.when(() => {
-        syncMaps();
-        
-        reactiveUtils.watch(
-          () => [view.center, view.zoom, view.rotation, view.extent],
-          () => {
-            syncMaps();
-          }
-        );
-      });
-      // ===== END PMTILES LAYER =====
-
-      // kincade fire perimeters feature layer
-      const featureLayer = new FeatureLayer({
-        portalItem: {
-          id: "39a2d42542f74e858cb92bb81adee4dc",
-        },
-        outFields: ["*"],
-        renderer: new SimpleRenderer({
-          symbol: new SimpleFillSymbol({
-            color: "#FAD0C6",
-            outline: {
-              color: "#520B02",
-              width: "2px",
-            },
-          }),
-        }),
-        effect: "brightness(600%)",
-        blendMode: "overlay",
-      });
-      map.add(featureLayer);
-
-      const layerView = await view.whenLayerView(featureLayer);
-
-      let dates = new Array();
-
-      const query = featureLayer.createQuery();
-      query.orderByFields = ["recordedDate"];
-
-      const queryResult = await featureLayer.queryFeatures(query);
-
-      queryResult.features.forEach((feature, i) => {
-        const date = new Date(feature.attributes.recordedDate);
-        const notes = feature.attributes.Notes;
-        const centroid = centroidOperator.execute(feature.geometry);
-
-        const graphic = new Graphic({
-          geometry: {
-            type: "point",
-            x: centroid.x,
-            y: centroid.y,
-            spatialReference: {
-              wkid: 102100,
-            },
-          },
-          attributes: {
-            acres: feature.attributes.gisacres,
-            start: new Date(feature.attributes.recordedData),
-          },
-          symbol: new TextSymbol({
-            text: notes,
-            color: "black",
-            xoffset: 50,
-            yoffset: 10,
-            lineWidth: 200,
-            horizontalAlignment: "left",
-            backgroundColor: "white",
-            font: {
-              size: 12,
-              family: "sans-serif",
-            },
-          }),
+        // Firefly Imagery Hybrid
+        const basemap = new Basemap({
+          baseLayers: [
+            new TileLayer({
+              url: "https://fly.maptiles.arcgis.com/arcgis/rest/services/World_Imagery_Firefly/MapServer",
+            }),
+          ],
         });
 
-        const glayer = createGraphicsLayer(date, new Date(feature.attributes.recordedDate), i);
-        glayer.add(graphic);
-        map.add(glayer);
+        const map = new EsriMap({
+          basemap,
+        });
 
-        if (!dates.some((d) => d.getTime() === date.getTime())) {
-          dates.push(date);
+        // center around Sonoma county and lock the map extent and scale
+        const view = new MapView({
+          container: "viewDiv",
+          map,
+          center: [-122.7798, 38.6837],
+          zoom: 11,
+          constraints: {
+            minZoom: 11,
+            maxZoom: 11,
+            geometry: {
+              type: "extent",
+              xmax: -13633120.623372689,
+              xmin: -13702449.008027252,
+              ymax: 4708568.6044162195,
+              ymin: 4644361.5006567575,
+              spatialReference: {
+                wkid: 102100,
+              },
+            },
+          },
+        });
+        view.ui.remove("zoom");
+
+        // ===== ADD PMTILES LAYER =====
+        const pmtilesContainer = document.createElement('div');
+        pmtilesContainer.id = 'pmtiles-container';
+        view.container.appendChild(pmtilesContainer);
+
+        // Initialize PMTiles protocol
+        let protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol("pmtiles", protocol.tile);
+
+        // Create MapLibre map synced with ArcGIS view
+        const mlMap = new maplibregl.Map({
+          container: pmtilesContainer,
+          style: {
+            version: 8,
+            sources: {
+              pmtiles: {
+                type: 'vector',
+                url: 'pmtiles://https://github.com/AlessandraSozzi/test-esri-app/releases/download/asset/cropland.pmtiles',
+                attribution: 'PMTiles'
+              }
+            },
+            layers: [
+              {
+                id: 'cropland',
+                type: 'fill',
+                source: 'pmtiles',
+                'source-layer': 'cropland', // Change this to match your PMTiles layer name
+                paint: {
+                  'fill-color': '#00ff00',
+                  'fill-opacity': 0.6
+                }
+              },
+              {
+                id: 'cropland-outline',
+                type: 'line',
+                source: 'pmtiles',
+                'source-layer': 'cropland', // Change this to match your PMTiles layer name
+                paint: {
+                  'line-color': '#00aa00',
+                  'line-width': 1
+                }
+              }
+            ]
+          },
+          center: [-122.7798, 38.6837],
+          zoom: 11,
+          interactive: false,
+          attributionControl: false
+        });
+
+        // Debug: Check what's in the PMTiles file
+        mlMap.on('load', () => {
+          console.log('MapLibre loaded');
+          const style = mlMap.getStyle();
+          console.log('Style:', style);
+        });
+
+        mlMap.on('error', (e) => {
+          console.error('MapLibre error:', e);
+        });
+
+        mlMap.on('data', (e) => {
+          if (e.sourceId === 'pmtiles' && e.isSourceLoaded) {
+            console.log('PMTiles source loaded');
+            // Try to get source layers
+            const source = mlMap.getSource('pmtiles');
+            console.log('PMTiles source:', source);
+          }
+        });
+
+        // Sync MapLibre with ArcGIS MapView
+        function syncMaps() {
+          const center = webMercatorUtils.webMercatorToGeographic(view.center);
+          mlMap.setCenter([center.x, center.y]);
+          mlMap.setZoom(view.zoom);
+          mlMap.setBearing(view.rotation);
         }
-      });
 
-      const timeSlider = new TimeSlider({
-        container: "timeSlider",
-        mode: "instant",
-        timeVisible: true,
-        playRate: 2000,
-        stops: { dates },
-        loop: true,
-        fullTimeExtent: new TimeExtent({
-          start: dates[0],
-          end: dates[dates.length - 1],
-        }),
-        view: view,
-      });
-      view.ui.add(timeSlider, "bottom-left");
+        view.when(() => {
+          syncMaps();
+          
+          reactiveUtils.watch(
+            () => [view.center, view.zoom, view.rotation, view.extent],
+            () => {
+              syncMaps();
+            }
+          );
+        });
+        // ===== END PMTILES LAYER =====
 
-      reactiveUtils.watch(
-        () => timeSlider.timeExtent,
-        () => {
-          const start = timeSlider.timeExtent.start
-            .toISOString()
-            .replace("T", " ")
-            .substring(0, 19);
-
-          const where = `recordedDate = TIMESTAMP '${start}'`;
-          layerView.featureEffect = {
-            filter: new FeatureFilter({
-              where,
+        // kincade fire perimeters feature layer
+        const featureLayer = new FeatureLayer({
+          portalItem: {
+            id: "39a2d42542f74e858cb92bb81adee4dc",
+          },
+          outFields: ["*"],
+          renderer: new SimpleRenderer({
+            symbol: new SimpleFillSymbol({
+              color: "#FAD0C6",
+              outline: {
+                color: "#520B02",
+                width: "2px",
+              },
             }),
-            includedEffect: "drop-shadow(3px, 3px, 4px) hue-rotate(270deg)",
-            excludedEffect: "grayscale(80%) opacity(0%)",
+          }),
+          effect: "brightness(600%)",
+          blendMode: "overlay",
+        });
+        map.add(featureLayer);
+
+        const layerView = await view.whenLayerView(featureLayer);
+
+        let dates = new Array();
+
+        const query = featureLayer.createQuery();
+        query.orderByFields = ["recordedDate"];
+
+        const queryResult = await featureLayer.queryFeatures(query);
+
+        queryResult.features.forEach((feature, i) => {
+          const date = new Date(feature.attributes.recordedDate);
+          const notes = feature.attributes.Notes;
+          const centroid = centroidOperator.execute(feature.geometry);
+
+          const graphic = new Graphic({
+            geometry: {
+              type: "point",
+              x: centroid.x,
+              y: centroid.y,
+              spatialReference: {
+                wkid: 102100,
+              },
+            },
+            attributes: {
+              acres: feature.attributes.gisacres,
+              start: new Date(feature.attributes.recordedData),
+            },
+            symbol: new TextSymbol({
+              text: notes,
+              color: "black",
+              xoffset: 50,
+              yoffset: 10,
+              lineWidth: 200,
+              horizontalAlignment: "left",
+              backgroundColor: "white",
+              font: {
+                size: 12,
+                family: "sans-serif",
+              },
+            }),
+          });
+
+          const glayer = createGraphicsLayer(date, new Date(feature.attributes.recordedDate), i);
+          glayer.add(graphic);
+          map.add(glayer);
+
+          if (!dates.some((d) => d.getTime() === date.getTime())) {
+            dates.push(date);
+          }
+        });
+
+        const timeSlider = new TimeSlider({
+          container: "timeSlider",
+          mode: "instant",
+          timeVisible: true,
+          playRate: 2000,
+          stops: { dates },
+          loop: true,
+          fullTimeExtent: new TimeExtent({
+            start: dates[0],
+            end: dates[dates.length - 1],
+          }),
+          view: view,
+        });
+        view.ui.add(timeSlider, "bottom-left");
+
+        reactiveUtils.watch(
+          () => timeSlider.timeExtent,
+          () => {
+            const start = timeSlider.timeExtent.start
+              .toISOString()
+              .replace("T", " ")
+              .substring(0, 19);
+
+            const where = `recordedDate = TIMESTAMP '${start}'`;
+            layerView.featureEffect = {
+              filter: new FeatureFilter({
+                where,
+              }),
+              includedEffect: "drop-shadow(3px, 3px, 4px) hue-rotate(270deg)",
+              excludedEffect: "grayscale(80%) opacity(0%)",
+            };
+          },
+        );
+
+        function createGraphicsLayer(startDate, endDate, index) {
+          const graphicsLayer = new GraphicsLayer();
+          graphicsLayer.id = `graphicsLayer${index}`;
+          graphicsLayer.visibilityTimeExtent = {
+            start: startDate,
+            end: startDate,
           };
-        },
-      );
+          return graphicsLayer;
+        }
 
-      function createGraphicsLayer(startDate, endDate, index) {
-        const graphicsLayer = new GraphicsLayer();
-        graphicsLayer.id = `graphicsLayer${index}`;
-        graphicsLayer.visibilityTimeExtent = {
-          start: startDate,
-          end: startDate,
-        };
-        return graphicsLayer;
-      }
-
-      view.ui.add("infoDiv", "top-right");
+        view.ui.add("infoDiv", "top-right");
+      });
     </script>
   </head>
 
