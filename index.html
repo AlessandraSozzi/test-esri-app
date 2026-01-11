@@ -45,7 +45,7 @@
       // Wait for libraries to load, then start the app
       window.addEventListener('load', async () => {
         const [
-          EsriMap,
+          Map,
           Basemap,
           MapView,
           FeatureLayer,
@@ -89,7 +89,7 @@
           ],
         });
 
-        const map = new EsriMap({
+        const map = new Map({
           basemap,
         });
 
@@ -184,6 +184,10 @@
             const source = mlMap.getSource('pmtiles');
             console.log('PMTiles source:', source);
           }
+        });
+
+        mlMap.on('styleimagemissing', (e) => {
+          console.log('Missing image:', e.id);
         });
 
         // Sync MapLibre with ArcGIS MapView
